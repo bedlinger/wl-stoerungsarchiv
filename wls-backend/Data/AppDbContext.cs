@@ -31,6 +31,7 @@ namespace wls_backend.Data
         public DbSet<Disturbance> Disturbance { get; set; }
         public DbSet<DisturbanceDescription> DisturbanceDescription { get; set; }
         public DbSet<Line> Line { get; set; }
+        public DbSet<Subscriber> Subscribers { get; set; }
 
         public IQueryable<Disturbance> DisturbanceWithAll => Disturbance
             .Include(d => d.Descriptions.OrderBy(desc => desc.CreatedAt))
