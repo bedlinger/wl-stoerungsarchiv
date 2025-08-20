@@ -42,7 +42,7 @@ builder.Services.AddHostedService<WlUpdateService>();
 
 FirebaseApp.Create(new AppOptions()
 {
-    Credential = GoogleCredential.GetApplicationDefault(),
+    Credential = GoogleCredential.FromFile(builder.Configuration["FirebaseCredentials:FilePath"]),
 });
 
 if (builder.Environment.IsDevelopment())

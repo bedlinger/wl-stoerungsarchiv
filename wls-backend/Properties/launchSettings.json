@@ -16,8 +16,7 @@
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5206",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "GOOGLE_APPLICATION_CREDENTIALS": "wl-stoerungsarchiv-firebase-adminsdk.json"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
     "IIS Express": {

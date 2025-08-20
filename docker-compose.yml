@@ -25,7 +25,7 @@ services:
       - Db__Host=wls-db
       - Db__User=postgres
       - Db__Password=schueler
-      - GOOGLE_APPLICATION_CREDENTIALS=/run/wl-stoerungsarchiv-firebase-adminsdk.json
+      - FirebasCredentials__FilePath=/run/wl-stoerungsarchiv-firebase-adminsdk.json
     restart: always
     depends_on:
       - wls-db
