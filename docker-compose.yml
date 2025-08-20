@@ -1,5 +1,4 @@
 services:
-
   wls-proxy:
     build:
       context: ./
@@ -20,10 +19,13 @@ services:
       - web
     expose:
       - 8080
+    volumes:
+      - ./wls-backend/wl-stoerungsarchiv-firebase-adminsdk.json:/run/wl-stoerungsarchiv-firebase-adminsdk.json:ro
     environment:
       - Db__Host=wls-db
       - Db__User=postgres
       - Db__Password=schueler
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/wl-stoerungsarchiv-firebase-adminsdk.json
     restart: always
     depends_on:
       - wls-db
