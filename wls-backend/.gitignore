@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Firebase Admin SDK
+wl-stoerungsarchiv-firebase-adminsdk.json
+
 # User-specific files
 *.rsuser
 *.suo
