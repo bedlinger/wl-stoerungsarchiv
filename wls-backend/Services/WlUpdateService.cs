@@ -55,6 +55,9 @@ namespace wls_backend.Services
 
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var notificationsServive = scope.ServiceProvider.GetRequiredService<NotificationsService>();
+
+            var notificationEvents = new List<DisturbanceEvent>();
 
             var openDisturbances = await context.DisturbanceWithAll
                 .Where(d => d.EndedAt == null)
@@ -84,7 +87,7 @@ namespace wls_backend.Services
                     responseDisturbance.Descriptions.Last().Text = string.Join(" / ", relatedDisturbances.Select(d => d.Descriptions.Last().Text));
                 }
 
-                if (dbDisturbance == null)  
+                if (dbDisturbance == null)
                 {
                     dbDisturbance = context.DisturbanceWithAll
                         .Where(d => d.Id == responseDisturbance.Id)
@@ -93,12 +96,14 @@ namespace wls_backend.Services
                     if (dbDisturbance == null)  // new disturbance
                     {
                         context.Disturbance.Add(responseDisturbance);
+                        notificationEvents.Add(new DisturbanceEvent(EventType.New, responseDisturbance));
                         continue;
                     }
 
                     dbDisturbance.EndedAt = null; // reset endedAt for existing disturbances
+                    notificationEvents.Add(new DisturbanceEvent(EventType.Reopened, dbDisturbance));
                 }
-                
+
                 // existing disturbance
                 if (dbDisturbance.Title != responseDisturbance.Title)
                 {
@@ -111,22 +116,28 @@ namespace wls_backend.Services
                 }
                 if (dbDisturbance.Descriptions.LastOrDefault()?.Text != responseDisturbance.Descriptions.Last().Text)
                 {
-                    dbDisturbance.Descriptions.Add(new DisturbanceDescription()
+                    var newDescription = new DisturbanceDescription()
                     {
                         DisturbanceId = dbDisturbance.Id,
                         CreatedAt = DateTime.Now,
                         Text = responseDisturbance.Descriptions.Last().Text
-                    });
+                    };
+                    dbDisturbance.Descriptions.Add(newDescription);
+                    notificationEvents.Add(new DisturbanceEvent(EventType.Updated, dbDisturbance, newDescription.Text));
                 }
             }
 
             // close disturbances that are no longer present in the response
-            foreach (var closedDisturbance in openDisturbances.Where(d => !processedDisturbanceIds.Contains(d.Id)))
+            var resolvedDisturbances = openDisturbances.Where(d => !processedDisturbanceIds.Contains(d.Id)).ToList();
+            foreach (var closedDisturbance in resolvedDisturbances)
             {
                 closedDisturbance.EndedAt = DateTime.Now;
+                notificationEvents.Add(new DisturbanceEvent(EventType.Resolved, closedDisturbance));
             }
 
             await context.SaveChangesAsync();
+
+            await notificationsServive.SendNotifications(notificationEvents);
         }
 
         private Disturbance DisturbanceFromJsonNode(JsonNode node, AppDbContext context)

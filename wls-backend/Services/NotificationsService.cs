@@ -3,6 +3,7 @@ using wls_backend.Models.Domain;
 using wls_backend.Models.DTOs;
 using FirebaseAdmin.Messaging;
 using Microsoft.EntityFrameworkCore;
+using wls_backend.Models.Enums;
 
 namespace wls_backend.Services
 {
@@ -62,12 +63,11 @@ namespace wls_backend.Services
 
         public async Task AddSubscriber(SubscribeRequest subscribeRequest)
         {
-            // TODO: UNCOMMENT THE VERIFICATION
-            /* var verificationResult = await VerifyToken(subscribeRequest.Token);
-               if (!verificationResult.IsValid)
-               {
-                   throw new InvalidOperationException($"Subscription failed: {verificationResult.Message}");
-               } */
+            var verificationResult = await VerifyToken(subscribeRequest.Token);
+            if (!verificationResult.IsValid)
+            {
+                throw new InvalidOperationException($"Subscription failed: {verificationResult.Message}");
+            }
 
             // Find or create the subscriber, making sure to include their existing subscriptions
             var subscriber = await _context.Subscribers
@@ -136,6 +136,94 @@ namespace wls_backend.Services
             await _context.Subscribers
                 .Where(s => s.Token == token)
                 .ExecuteDeleteAsync();
+        }
+
+        public async Task SendNotifications(IEnumerable<DisturbanceEvent> disturbanceEvents)
+        {
+            if (disturbanceEvents == null || !disturbanceEvents.Any())
+            {
+                return;
+            }
+
+            foreach (var disturbanceEvent in disturbanceEvents)
+            {
+                var affectedLineIds = disturbanceEvent.Disturbance.Lines
+                    .Select(l => l.Id)
+                    .ToHashSet();
+
+                if (!affectedLineIds.Any())
+                {
+                    continue;
+                }
+
+                var subscriberTokens = await _context.Subscribers
+                    .Where(s => s.Subscriptions.Any(sub => affectedLineIds.Contains(sub.LineId)))
+                    .Select(s => s.Token)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (!subscriberTokens.Any())
+                {
+                    continue;
+                }
+
+                (string title, string body) = BuildNotificationMessage(disturbanceEvent);
+
+                var message = new MulticastMessage()
+                {
+                    Tokens = subscriberTokens,
+                    Notification = new Notification()
+                    {
+                        Title = title,
+                        Body = body,
+                    },
+                    Data = new Dictionary<string, string>(){
+                      { "disturbanceId", disturbanceEvent.Disturbance.Id },
+                      { "screen", "distutbance_detail" }
+                    }
+                };
+
+                var response = await FirebaseMessaging.DefaultInstance.SendEachForMulticastAsync(message);
+                if (response.FailureCount > 0)
+                {
+                    var failedTokens = new List<string>();
+                    for (var i = 0; i < response.Responses.Count; i++)
+                    {
+                        if (!response.Responses[i].IsSuccess)
+                        {
+                            await RemoveSubscriber(subscriberTokens[i]);
+                        }
+                    }
+                }
+            }
+        }
+
+        private (string Title, string Body) BuildNotificationMessage(DisturbanceEvent disturbanceEvent)
+        {
+            var lineNames = string.Join(", ", disturbanceEvent.Disturbance.Lines.Select(l => l.DisplayName));
+            string title = disturbanceEvent.Disturbance.Title;
+            string body = "";
+
+            switch (disturbanceEvent.Type)
+            {
+                case EventType.New:
+                case EventType.Reopened:
+                    title = $"Neu: {lineNames}";
+                    body = disturbanceEvent.Disturbance.Descriptions.LastOrDefault()?.Text ?? "Eine neue Störung ist aufgetreten.";
+                    break;
+
+                case EventType.Updated:
+                    title = $"Update: {lineNames}";
+                    body = disturbanceEvent.UpdateText ?? "Die Störung wurde aktualisiert.";
+                    break;
+
+                case EventType.Resolved:
+                    title = $"Gelöst: {lineNames}";
+                    body = $"Die Störung '{disturbanceEvent.Disturbance.Title}' wurde gelöst.";
+                    break;
+            }
+
+            return (title, body);
         }
     }
 }
