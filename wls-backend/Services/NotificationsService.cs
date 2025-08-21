@@ -12,11 +12,11 @@ namespace wls_backend.Services
         public string Message { get; set; } = "";
     }
 
-    public class SubscriberService
+    public class NotificationsService
     {
         private readonly AppDbContext _context;
 
-        public SubscriberService(AppDbContext context)
+        public NotificationsService(AppDbContext context)
         {
             _context = context;
         }
@@ -62,6 +62,7 @@ namespace wls_backend.Services
 
         public async Task AddSubscriber(SubscribeRequest subscribeRequest)
         {
+            // TODO: UNCOMMENT THE VERIFICATION
             /* var verificationResult = await VerifyToken(subscribeRequest.Token);
                if (!verificationResult.IsValid)
                {
@@ -121,7 +122,6 @@ namespace wls_backend.Services
                 await _context.Subscriptions.AddRangeAsync(subscriptionsToAdd);
             }
 
-            // Save all the changes in a single transaction
             await _context.SaveChangesAsync();
         }
 

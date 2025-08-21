@@ -8,10 +8,10 @@ namespace wls_backend.Controllers
     [ApiController]
     public class NotificationsController : ControllerBase
     {
-        private readonly SubscriberService _subscriberService;
-        public NotificationsController(SubscriberService subscriberService)
+        private readonly NotificationsService _notificationsService;
+        public NotificationsController(NotificationsService notificationsService)
         {
-            _subscriberService = subscriberService;
+            _notificationsService = notificationsService;
         }
 
         [HttpPost("subscribe")]
@@ -19,7 +19,7 @@ namespace wls_backend.Controllers
         {
             try
             {
-                await _subscriberService.AddSubscriber(subscribeRequest);
+                await _notificationsService.AddSubscriber(subscribeRequest);
                 return Ok();
             }
             catch (InvalidOperationException ex)
@@ -33,7 +33,7 @@ namespace wls_backend.Controllers
         {
             try
             {
-                await _subscriberService.RemoveSubscriber(token);
+                await _notificationsService.RemoveSubscriber(token);
                 return Ok();
             }
             catch (Exception ex)

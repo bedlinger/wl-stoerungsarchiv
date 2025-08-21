@@ -36,7 +36,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddTransient<DisturbanceService>();
 builder.Services.AddTransient<LineService>();
-builder.Services.AddTransient<SubscriberService>();
+builder.Services.AddTransient<NotificationsService>();
 
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<WlUpdateService>();
