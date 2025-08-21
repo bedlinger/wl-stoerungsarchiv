@@ -62,16 +62,13 @@ namespace wls_backend.Services
 
         public async Task AddSubscriber(SubscribeRequest subscribeRequest)
         {
-            var verificationResult = await VerifyToken(subscribeRequest.Token);
-            if (!verificationResult.IsValid)
-            {
-                throw new InvalidOperationException($"Subscription failed: {verificationResult.Message}");
-            }
+            /* var verificationResult = await VerifyToken(subscribeRequest.Token);
+               if (!verificationResult.IsValid)
+               {
+                   throw new InvalidOperationException($"Subscription failed: {verificationResult.Message}");
+               } */
 
-            if (string.IsNullOrWhiteSpace(subscribeRequest.Lines))
-                throw new InvalidOperationException("Subscription failed: Lines are not valid");
-
-            // Check if sub exists or else create
+            // Find or create the subscriber, making sure to include their existing subscriptions
             var subscriber = await _context.Subscribers
                 .Include(s => s.Subscriptions)
                 .FirstOrDefaultAsync(s => s.Token == subscribeRequest.Token);
@@ -82,26 +79,49 @@ namespace wls_backend.Services
                 _context.Subscribers.Add(subscriber);
             }
 
-            // fetch valid line entities the user wants to sub
-            var lineNames = subscribeRequest.Lines.Split(',').Select(l => l.Trim()).Distinct();
-            var linesToSubscribe = await _context.Line
-                .Where(l => lineNames.Contains(l.Id))
-                .ToListAsync();
+            // Parse the requested line names from the input string
+            // An empty or null string will result in an empty set, correctly signifying "unsubscribe from all"
+            var requestedLineNames = (subscribeRequest.Lines ?? string.Empty)
+                .Split(',')
+                .Select(l => l.Trim())
+                .Where(l => !string.IsNullOrEmpty(l))
+                .Distinct()
+                .ToHashSet();
 
-            if (linesToSubscribe.Count == 0)
-                throw new InvalidOperationException("Subscription failed: No valid lines were found in the database.");
+            // Get the set of currently subscribed line IDs
+            var currentLineIds = subscriber.Subscriptions
+                .Select(s => s.LineId)
+                .ToHashSet();
 
-            // prevent duplicate subscriptions by adding only the new, requested lines to the database 
-            var existingLineIds = subscriber.Subscriptions.Select(s => s.LineId).ToHashSet();
-            var newSubscriptions = linesToSubscribe
-                .Where(line => !existingLineIds.Contains(line.Id))
-                .Select(line => new Subscription
+            // Validate that the requested lines exist in the database
+            var validRequestedLines = await _context.Line
+                .Where(l => requestedLineNames.Contains(l.Id))
+                .Select(l => l.Id)
+                .ToHashSetAsync();
+
+            // Determine which subscriptions to REMOVE
+            var lineIdsToRemove = currentLineIds.Except(validRequestedLines).ToList();
+            if (lineIdsToRemove.Any())
+            {
+                var subscriptionsToRemove = subscriber.Subscriptions
+                    .Where(s => lineIdsToRemove.Contains(s.LineId))
+                    .ToList();
+                _context.Subscriptions.RemoveRange(subscriptionsToRemove);
+            }
+
+            // Determine which subscriptions to ADD
+            var lineIdsToAdd = validRequestedLines.Except(currentLineIds).ToList();
+            if (lineIdsToAdd.Any())
+            {
+                var subscriptionsToAdd = lineIdsToAdd.Select(lineId => new Subscription
                 {
                     Subscriber = subscriber,
-                    Line = line,
+                    LineId = lineId
                 });
+                await _context.Subscriptions.AddRangeAsync(subscriptionsToAdd);
+            }
 
-            await _context.Subscriptions.AddRangeAsync(newSubscriptions);
+            // Save all the changes in a single transaction
             await _context.SaveChangesAsync();
         }
 
