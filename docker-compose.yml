@@ -25,10 +25,11 @@ services:
       - Db__Host=wls-db
       - Db__User=postgres
       - Db__Password=schueler
-      - FirebasCredentials__FilePath=/run/wl-stoerungsarchiv-firebase-adminsdk.json
+      - FirebaseCredentials__FilePath=/run/wl-stoerungsarchiv-firebase-adminsdk.json
     restart: always
     depends_on:
-      - wls-db
+      wls-db:
+        condition: service_healthy
 
   wls-db:
     image: postgres
@@ -37,11 +38,17 @@ services:
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
     environment:
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=schueler
     networks:
       - web
     expose:
       - 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 networks:
   web:
