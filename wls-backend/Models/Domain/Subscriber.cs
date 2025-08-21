@@ -1,11 +1,9 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace wls_backend.Models.Domain
 {
     public class Subscriber
     {
-        [Key]
+        public int Id { get; set; }
         required public string Token { get; set; }
-        required public ICollection<Line> Lines { get; set; }
+        public ICollection<Subscription> Subscriptions { get; set; } = [];
     }
 }
