@@ -12,18 +12,12 @@ namespace wls_backend.Services
     {
         private readonly AppDbContext _context;
 
-        private class VerificationResult
-        {
-            public bool IsValid { get; set; }
-            public string Message { get; set; } = "";
-        }
-
         public NotificationsService(AppDbContext context)
         {
             _context = context;
         }
 
-        private async Task<VerificationResult> VerifyToken(String token)
+        private async Task VerifyToken(String token)
         {
             if (token == null)
                 throw new ArgumentNullException("Token can not be null");
@@ -37,74 +31,57 @@ namespace wls_backend.Services
 
             try
             {
-                var result = await FirebaseMessaging.DefaultInstance.SendAsync(message, true);
-                return new VerificationResult { IsValid = true, Message = "Token is valid." };
+                await FirebaseMessaging.DefaultInstance.SendAsync(message, true);
             }
             catch (FirebaseMessagingException ex)
             {
-                string errorMessage = "Unknown error occured";
-
                 switch (ex.MessagingErrorCode)
                 {
                     case MessagingErrorCode.InvalidArgument:
-                        errorMessage = "Device Token is malformed or invalid";
-                        break;
+                        throw new ArgumentException("Device Token is malformed or invalid");
                     case MessagingErrorCode.Unregistered:
-                        errorMessage = "Device Token is unregistered and no longer valid";
-                        break;
+                        throw new ArgumentException("Device Token is unregistered and no longer valid");
+                    default:
+                        throw new ArgumentException("Unknown error occured");
                 }
-
-                return new VerificationResult { IsValid = false, Message = errorMessage };
-            }
-            catch (Exception)
-            {
-                return new VerificationResult { IsValid = false, Message = "Internal server error occurred" };
             }
         }
 
-        public async Task<SubscriberResponse?> GetSubscriber(string token)
+        public async Task<SubscriberResponse?> GetSubscription(string token)
         {
-            var verificationResult = await VerifyToken(token);
-            if (!verificationResult.IsValid)
-            {
-                throw new InvalidOperationException(verificationResult.Message);
-            }
-
-            var subscriberDomainModel = await _context.Subscribers
-                .Include(s => s.Subscriptions)
-                .ThenInclude(sub => sub.Line)
-                .FirstOrDefaultAsync(s => s.Token == token);
-
-            if (subscriberDomainModel == null)
-            {
-                return null;
-            }
-
-            return SubscriberResponse.FromDomain(subscriberDomainModel);
-        }
-
-        public async Task<SubscribeResult> AddSubscriber(SubscribeRequest subscribeRequest)
-        {
-            var verificationResult = await VerifyToken(subscribeRequest.Token);
-            if (!verificationResult.IsValid)
-            {
-                throw new InvalidOperationException($"Subscription failed: {verificationResult.Message}");
-            }
+            await VerifyToken(token);
 
             var subscriber = await _context.Subscribers
                 .Include(s => s.Subscriptions)
                 .ThenInclude(sub => sub.Line)
-                .FirstOrDefaultAsync(s => s.Token == subscribeRequest.Token);
+                .FirstOrDefaultAsync(s => s.Token == token);
+
+            if (subscriber == null)
+            {
+                return null;
+            }
+
+            return SubscriberResponse.FromDomain(subscriber);
+        }
+
+        public async Task<(Boolean, SubscriberResponse)> CreateOrUpdateSubscription(SubscriberRequest subscriberRequest)
+        {
+            await VerifyToken(subscriberRequest.Token);
+
+            var subscriber = await _context.Subscribers
+                .Include(s => s.Subscriptions)
+                .ThenInclude(sub => sub.Line)
+                .FirstOrDefaultAsync(s => s.Token == subscriberRequest.Token);
 
             bool wasCreated = false;
             if (subscriber == null)
             {
-                subscriber = new Subscriber { Token = subscribeRequest.Token };
+                subscriber = new Subscriber { Token = subscriberRequest.Token };
                 _context.Subscribers.Add(subscriber);
                 wasCreated = true;
             }
 
-            var requestedLineNames = (subscribeRequest.Lines ?? string.Empty)
+            var requestedLineNames = (subscriberRequest.Lines ?? string.Empty)
                 .Split(',')
                 .Select(l => l.Trim())
                 .Where(l => !string.IsNullOrEmpty(l))
@@ -142,10 +119,10 @@ namespace wls_backend.Services
 
             await _context.SaveChangesAsync();
 
-            return new SubscribeResult { WasCreated = wasCreated, Subscriber = SubscriberResponse.FromDomain(subscriber) };
+            return (wasCreated, SubscriberResponse.FromDomain(subscriber));
         }
 
-        public async Task RemoveSubscriber(String token)
+        public async Task DeleteSubscription(String token)
         {
 
             if (token == null || string.IsNullOrWhiteSpace(token))
@@ -211,7 +188,7 @@ namespace wls_backend.Services
                     {
                         if (!response.Responses[i].IsSuccess)
                         {
-                            await RemoveSubscriber(subscriberTokens[i]);
+                            await DeleteSubscription(subscriberTokens[i]);
                         }
                     }
                 }

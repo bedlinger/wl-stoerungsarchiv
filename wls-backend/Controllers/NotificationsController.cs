@@ -15,16 +15,16 @@ namespace wls_backend.Controllers
         }
 
         [HttpGet("{token}")]
-        public async Task<ActionResult<SubscriberResponse>> GetSubscriber([FromRoute] string token)
+        public async Task<ActionResult<SubscriberResponse>> GetSubscription([FromRoute] string token)
         {
-            var subscriberDto = await _notificationsService.GetSubscriber(token);
+            var subscriber = await _notificationsService.GetSubscription(token);
 
-            if (subscriberDto == null)
+            if (subscriber == null)
             {
                 return NotFound();
             }
 
-            return Ok(subscriberDto);
+            return Ok(subscriber);
         }
 
         [HttpPut("{token}")]
@@ -32,22 +32,22 @@ namespace wls_backend.Controllers
         {
             try
             {
-                var subscribeRequest = new SubscribeRequest
+                var subscribeRequest = new SubscriberRequest
                 {
                     Token = token,
                     Lines = request.Lines
                 };
 
-                var result = await _notificationsService.AddSubscriber(subscribeRequest);
+                var (wasCreated, subscriber) = await _notificationsService.CreateOrUpdateSubscription(subscribeRequest);
 
-                if (result.WasCreated)
+                if (wasCreated)
                 {
-                    var locationUrl = Url.Action(nameof(GetSubscriber), new { token = result.Subscriber.Token });
-                    return Created(locationUrl, result.Subscriber);
+                    var locationUrl = Url.Action(nameof(GetSubscription), new { token = subscriber.Token });
+                    return Created(locationUrl, subscriber);
                 }
                 else
                 {
-                    return Ok(result.Subscriber);
+                    return Ok(subscriber);
                 }
             }
             catch (InvalidOperationException ex)
@@ -61,11 +61,11 @@ namespace wls_backend.Controllers
         }
 
         [HttpDelete("{token}")]
-        public async Task<IActionResult> Unsubscribe([FromRoute] String token)
+        public async Task<IActionResult> DeleteSubscription([FromRoute] String token)
         {
             try
             {
-                await _notificationsService.RemoveSubscriber(token);
+                await _notificationsService.DeleteSubscription(token);
                 return NoContent();
             }
             catch (Exception)

@@ -18,11 +18,4 @@ namespace wls_backend.Models.DTOs
             };
         }
     }
-
-    public class SubscribeResult
-    {
-        required public bool WasCreated { get; set; }
-        required public SubscriberResponse Subscriber { get; set; }
-
-    }
 }
