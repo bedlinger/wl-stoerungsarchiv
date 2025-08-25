@@ -35,8 +35,6 @@ namespace wls_backend.Services
                 Token = token,
             };
 
-            return new VerificationResult { IsValid = true, Message = "Token is valid." };
-
             try
             {
                 var result = await FirebaseMessaging.DefaultInstance.SendAsync(message, true);
