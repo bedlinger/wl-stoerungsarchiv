@@ -7,15 +7,16 @@ using wls_backend.Models.Enums;
 
 namespace wls_backend.Services
 {
-    public class VerificationResult
-    {
-        public bool IsValid { get; set; }
-        public string Message { get; set; } = "";
-    }
 
     public class NotificationsService
     {
         private readonly AppDbContext _context;
+
+        private class VerificationResult
+        {
+            public bool IsValid { get; set; }
+            public string Message { get; set; } = "";
+        }
 
         public NotificationsService(AppDbContext context)
         {
@@ -33,6 +34,8 @@ namespace wls_backend.Services
             {
                 Token = token,
             };
+
+            return new VerificationResult { IsValid = true, Message = "Token is valid." };
 
             try
             {
@@ -61,7 +64,28 @@ namespace wls_backend.Services
             }
         }
 
-        public async Task AddSubscriber(SubscribeRequest subscribeRequest)
+        public async Task<SubscriberResponse?> GetSubscriber(string token)
+        {
+            var verificationResult = await VerifyToken(token);
+            if (!verificationResult.IsValid)
+            {
+                throw new InvalidOperationException(verificationResult.Message);
+            }
+
+            var subscriberDomainModel = await _context.Subscribers
+                .Include(s => s.Subscriptions)
+                .ThenInclude(sub => sub.Line)
+                .FirstOrDefaultAsync(s => s.Token == token);
+
+            if (subscriberDomainModel == null)
+            {
+                return null;
+            }
+
+            return SubscriberResponse.FromDomain(subscriberDomainModel);
+        }
+
+        public async Task<SubscribeResult> AddSubscriber(SubscribeRequest subscribeRequest)
         {
             var verificationResult = await VerifyToken(subscribeRequest.Token);
             if (!verificationResult.IsValid)
@@ -69,19 +93,19 @@ namespace wls_backend.Services
                 throw new InvalidOperationException($"Subscription failed: {verificationResult.Message}");
             }
 
-            // Find or create the subscriber, making sure to include their existing subscriptions
             var subscriber = await _context.Subscribers
                 .Include(s => s.Subscriptions)
+                .ThenInclude(sub => sub.Line)
                 .FirstOrDefaultAsync(s => s.Token == subscribeRequest.Token);
 
+            bool wasCreated = false;
             if (subscriber == null)
             {
                 subscriber = new Subscriber { Token = subscribeRequest.Token };
                 _context.Subscribers.Add(subscriber);
+                wasCreated = true;
             }
 
-            // Parse the requested line names from the input string
-            // An empty or null string will result in an empty set, correctly signifying "unsubscribe from all"
             var requestedLineNames = (subscribeRequest.Lines ?? string.Empty)
                 .Split(',')
                 .Select(l => l.Trim())
@@ -89,18 +113,15 @@ namespace wls_backend.Services
                 .Distinct()
                 .ToHashSet();
 
-            // Get the set of currently subscribed line IDs
             var currentLineIds = subscriber.Subscriptions
                 .Select(s => s.LineId)
                 .ToHashSet();
 
-            // Validate that the requested lines exist in the database
             var validRequestedLines = await _context.Line
                 .Where(l => requestedLineNames.Contains(l.Id))
                 .Select(l => l.Id)
                 .ToHashSetAsync();
 
-            // Determine which subscriptions to REMOVE
             var lineIdsToRemove = currentLineIds.Except(validRequestedLines).ToList();
             if (lineIdsToRemove.Any())
             {
@@ -110,7 +131,6 @@ namespace wls_backend.Services
                 _context.Subscriptions.RemoveRange(subscriptionsToRemove);
             }
 
-            // Determine which subscriptions to ADD
             var lineIdsToAdd = validRequestedLines.Except(currentLineIds).ToList();
             if (lineIdsToAdd.Any())
             {
@@ -123,6 +143,8 @@ namespace wls_backend.Services
             }
 
             await _context.SaveChangesAsync();
+
+            return new SubscribeResult { WasCreated = wasCreated, Subscriber = SubscriberResponse.FromDomain(subscriber) };
         }
 
         public async Task RemoveSubscriber(String token)
