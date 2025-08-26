@@ -5,8 +5,6 @@ services:
       dockerfile: ./wls-proxy/Dockerfile
     networks:
       - web
-    ports:
-      - "80:80"
     environment:
       - VIRTUAL_HOST=wls.byleo.net
       - LETSENCRYPT_HOST=wls.byleo.net
