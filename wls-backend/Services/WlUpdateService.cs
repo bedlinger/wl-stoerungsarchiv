@@ -55,9 +55,9 @@ namespace wls_backend.Services
 
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var notificationsServive = scope.ServiceProvider.GetRequiredService<NotificationsService>();
+            var subscriptionService = scope.ServiceProvider.GetRequiredService<SubscriptionService>();
 
-            var notificationEvents = new List<DisturbanceEvent>();
+            var disturbanceEvents = new List<DisturbanceEvent>();
 
             var openDisturbances = await context.DisturbanceWithAll
                 .Where(d => d.EndedAt == null)
@@ -96,12 +96,12 @@ namespace wls_backend.Services
                     if (dbDisturbance == null)  // new disturbance
                     {
                         context.Disturbance.Add(responseDisturbance);
-                        notificationEvents.Add(new DisturbanceEvent(EventType.New, responseDisturbance));
+                        disturbanceEvents.Add(new DisturbanceEvent(EventType.New, responseDisturbance));
                         continue;
                     }
 
                     dbDisturbance.EndedAt = null; // reset endedAt for existing disturbances
-                    notificationEvents.Add(new DisturbanceEvent(EventType.Reopened, dbDisturbance));
+                    disturbanceEvents.Add(new DisturbanceEvent(EventType.Reopened, dbDisturbance));
                 }
 
                 // existing disturbance
@@ -123,7 +123,7 @@ namespace wls_backend.Services
                         Text = responseDisturbance.Descriptions.Last().Text
                     };
                     dbDisturbance.Descriptions.Add(newDescription);
-                    notificationEvents.Add(new DisturbanceEvent(EventType.Updated, dbDisturbance, newDescription.Text));
+                    disturbanceEvents.Add(new DisturbanceEvent(EventType.Updated, dbDisturbance, newDescription.Text));
                 }
             }
 
@@ -132,12 +132,12 @@ namespace wls_backend.Services
             foreach (var closedDisturbance in resolvedDisturbances)
             {
                 closedDisturbance.EndedAt = DateTime.Now;
-                notificationEvents.Add(new DisturbanceEvent(EventType.Resolved, closedDisturbance));
+                disturbanceEvents.Add(new DisturbanceEvent(EventType.Resolved, closedDisturbance));
             }
 
             await context.SaveChangesAsync();
 
-            await notificationsServive.SendNotifications(notificationEvents);
+            await subscriptionService.SendNotifications(disturbanceEvents);
         }
 
         private Disturbance DisturbanceFromJsonNode(JsonNode node, AppDbContext context)

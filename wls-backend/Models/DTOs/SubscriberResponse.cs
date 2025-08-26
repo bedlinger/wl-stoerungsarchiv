@@ -2,17 +2,17 @@ using wls_backend.Models.Domain;
 
 namespace wls_backend.Models.DTOs
 {
-    public class SubscriberResponse
+    public class SubscriptionResponse
     {
         public string Token { get; set; } = null!;
-        public List<LineResponse> Subscriptions { get; set; } = new();
+        public List<LineResponse> SubscribedLines { get; set; } = new();
 
-        public static SubscriberResponse FromDomain(Subscriber subscriber)
+        public static SubscriptionResponse FromDomain(Device device)
         {
-            return new SubscriberResponse
+            return new SubscriptionResponse
             {
-                Token = subscriber.Token,
-                Subscriptions = subscriber.Subscriptions
+                Token = device.Token,
+                SubscribedLines = device.Subscriptions
                                       .Select(sub => LineResponse.FromDomain(sub.Line))
                                       .ToList()
             };

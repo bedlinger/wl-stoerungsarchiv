@@ -34,17 +34,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 );
 
-builder.Services.AddTransient<DisturbanceService>();
-builder.Services.AddTransient<LineService>();
-builder.Services.AddTransient<NotificationsService>();
-
-builder.Services.AddHttpClient();
-builder.Services.AddHostedService<WlUpdateService>();
-
 FirebaseApp.Create(new AppOptions()
 {
     Credential = GoogleCredential.FromFile(builder.Configuration["FirebaseCredentials:FilePath"]),
 });
+
+builder.Services.AddTransient<DisturbanceService>();
+builder.Services.AddTransient<LineService>();
+builder.Services.AddTransient<SubscriptionService>();
+
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<WlUpdateService>();
 
 if (builder.Environment.IsDevelopment())
 {

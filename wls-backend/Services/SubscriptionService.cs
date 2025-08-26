@@ -8,11 +8,11 @@ using wls_backend.Models.Enums;
 namespace wls_backend.Services
 {
 
-    public class NotificationsService
+    public class SubscriptionService
     {
         private readonly AppDbContext _context;
 
-        public NotificationsService(AppDbContext context)
+        public SubscriptionService(AppDbContext context)
         {
             _context = context;
         }
@@ -47,11 +47,11 @@ namespace wls_backend.Services
             }
         }
 
-        public async Task<SubscriberResponse?> GetSubscription(string token)
+        public async Task<SubscriptionResponse?> GetSubscriptions(string token)
         {
             await VerifyToken(token);
 
-            var subscriber = await _context.Subscribers
+            var subscriber = await _context.Devices
                 .Include(s => s.Subscriptions)
                 .ThenInclude(sub => sub.Line)
                 .FirstOrDefaultAsync(s => s.Token == token);
@@ -61,34 +61,34 @@ namespace wls_backend.Services
                 return null;
             }
 
-            return SubscriberResponse.FromDomain(subscriber);
+            return SubscriptionResponse.FromDomain(subscriber);
         }
 
-        public async Task<(Boolean, SubscriberResponse)> CreateOrUpdateSubscription(SubscriberRequest subscriberRequest)
+        public async Task<(Boolean, SubscriptionResponse)> CreateOrUpdateSubscriptions(CreateOrUpdateSubscriptionRequest subscriptionRequest)
         {
-            await VerifyToken(subscriberRequest.Token);
+            await VerifyToken(subscriptionRequest.Token);
 
-            var subscriber = await _context.Subscribers
+            var device = await _context.Devices
                 .Include(s => s.Subscriptions)
                 .ThenInclude(sub => sub.Line)
-                .FirstOrDefaultAsync(s => s.Token == subscriberRequest.Token);
+                .FirstOrDefaultAsync(s => s.Token == subscriptionRequest.Token);
 
             bool wasCreated = false;
-            if (subscriber == null)
+            if (device == null)
             {
-                subscriber = new Subscriber { Token = subscriberRequest.Token };
-                _context.Subscribers.Add(subscriber);
+                device = new Device { Token = subscriptionRequest.Token };
+                _context.Devices.Add(device);
                 wasCreated = true;
             }
 
-            var requestedLineNames = (subscriberRequest.Lines ?? string.Empty)
+            var requestedLineNames = (subscriptionRequest.Lines ?? string.Empty)
                 .Split(',')
                 .Select(l => l.Trim())
                 .Where(l => !string.IsNullOrEmpty(l))
                 .Distinct()
                 .ToHashSet();
 
-            var currentLineIds = subscriber.Subscriptions
+            var currentLineIds = device.Subscriptions
                 .Select(s => s.LineId)
                 .ToHashSet();
 
@@ -100,7 +100,7 @@ namespace wls_backend.Services
             var lineIdsToRemove = currentLineIds.Except(validRequestedLines).ToList();
             if (lineIdsToRemove.Any())
             {
-                var subscriptionsToRemove = subscriber.Subscriptions
+                var subscriptionsToRemove = device.Subscriptions
                     .Where(s => lineIdsToRemove.Contains(s.LineId))
                     .ToList();
                 _context.Subscriptions.RemoveRange(subscriptionsToRemove);
@@ -111,7 +111,7 @@ namespace wls_backend.Services
             {
                 var subscriptionsToAdd = lineIdsToAdd.Select(lineId => new Subscription
                 {
-                    Subscriber = subscriber,
+                    Device = device,
                     LineId = lineId
                 });
                 await _context.Subscriptions.AddRangeAsync(subscriptionsToAdd);
@@ -119,7 +119,7 @@ namespace wls_backend.Services
 
             await _context.SaveChangesAsync();
 
-            return (wasCreated, SubscriberResponse.FromDomain(subscriber));
+            return (wasCreated, SubscriptionResponse.FromDomain(device));
         }
 
         public async Task DeleteSubscription(String token)
@@ -130,7 +130,7 @@ namespace wls_backend.Services
                 return;
             }
 
-            await _context.Subscribers
+            await _context.Devices
                 .Where(s => s.Token == token)
                 .ExecuteDeleteAsync();
         }
@@ -153,7 +153,7 @@ namespace wls_backend.Services
                     continue;
                 }
 
-                var subscriberTokens = await _context.Subscribers
+                var subscriberTokens = await _context.Devices
                     .Where(s => s.Subscriptions.Any(sub => affectedLineIds.Contains(sub.LineId)))
                     .Select(s => s.Token)
                     .Distinct()

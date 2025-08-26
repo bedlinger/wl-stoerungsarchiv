@@ -6,51 +6,51 @@ namespace wls_backend.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    public class NotificationsController : ControllerBase
+    public class SubscriptionsController : ControllerBase
     {
-        private readonly NotificationsService _notificationsService;
-        public NotificationsController(NotificationsService notificationsService)
+        private readonly SubscriptionService _subscriptionService;
+        public SubscriptionsController(SubscriptionService subscriptionService)
         {
-            _notificationsService = notificationsService;
+            _subscriptionService = subscriptionService;
         }
 
         [HttpGet("{token}")]
-        public async Task<ActionResult<SubscriberResponse>> GetSubscription([FromRoute] string token)
+        public async Task<ActionResult<SubscriptionResponse>> GetSubscriptions([FromRoute] string token)
         {
-            var subscriber = await _notificationsService.GetSubscription(token);
+            var subscription = await _subscriptionService.GetSubscriptions(token);
 
-            if (subscriber == null)
+            if (subscription == null)
             {
                 return NotFound();
             }
 
-            return Ok(subscriber);
+            return Ok(subscription);
         }
 
         [HttpPut("{token}")]
-        public async Task<IActionResult> CreateOrUpdateSubscription([FromRoute] String token, [FromBody] UpdateSubscriptionsRequest request)
+        public async Task<IActionResult> CreateOrUpdateSubscriptions([FromRoute] String token, [FromBody] UpdateSubscriptionsRequest request)
         {
             try
             {
-                var subscribeRequest = new SubscriberRequest
+                var subscriptionRequest = new CreateOrUpdateSubscriptionRequest
                 {
                     Token = token,
                     Lines = request.Lines
                 };
 
-                var (wasCreated, subscriber) = await _notificationsService.CreateOrUpdateSubscription(subscribeRequest);
+                var (wasCreated, subscription) = await _subscriptionService.CreateOrUpdateSubscriptions(subscriptionRequest);
 
                 if (wasCreated)
                 {
-                    var locationUrl = Url.Action(nameof(GetSubscription), new { token = subscriber.Token });
-                    return Created(locationUrl, subscriber);
+                    var locationUrl = Url.Action(nameof(GetSubscriptions), new { token = subscription.Token });
+                    return Created(locationUrl, subscription);
                 }
                 else
                 {
-                    return Ok(subscriber);
+                    return Ok(subscription);
                 }
             }
-            catch (InvalidOperationException ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
@@ -65,7 +65,7 @@ namespace wls_backend.Controllers
         {
             try
             {
-                await _notificationsService.DeleteSubscription(token);
+                await _subscriptionService.DeleteSubscription(token);
                 return NoContent();
             }
             catch (Exception)

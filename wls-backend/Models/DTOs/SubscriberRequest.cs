@@ -1,6 +1,6 @@
 namespace wls_backend.Models.DTOs
 {
-    public class SubscriberRequest
+    public class CreateOrUpdateSubscriptionRequest
     {
         public string Token { get; set; } = "";
         public string Lines { get; set; } = "";
