@@ -1,5 +1,5 @@
 export const globals = {
-  apiUrl: "http://localhost:5206",
+  apiUrl: process.env.VUE_APP_API_URL,
   defaultDate: new Date(Date.now()).toLocaleDateString("de-DE", {
     dateStyle: "medium",
   }),
@@ -9,7 +9,7 @@ export const globals = {
       Tram: "red",
       Bus: "blue",
       Night: "purple",
-      Misc: "grey"
+      Misc: "grey",
     };
     if (line.type === "Metro") {
       if (line.id.includes("U1")) {
@@ -45,9 +45,11 @@ export const globals = {
     if (body) {
       options.body = body ? JSON.stringify(body) : "{}";
     }
-    url = url.startsWith("/") ? this.apiUrl + url : url;
+
+    const fullUrl = url.startsWith("/") ? this.apiUrl + url : url;
+
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(fullUrl, options);
       if (!response.ok) return null;
       return response.json();
     } catch (err) {
