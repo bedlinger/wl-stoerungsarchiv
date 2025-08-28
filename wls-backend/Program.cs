@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using wls_backend.Data;
 using wls_backend.Services;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 var builder = WebApplication.CreateBuilder(args);
 var AllowLocalOrigins = "AllowLocalOrigins";
@@ -32,8 +34,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 );
 
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = GoogleCredential.FromFile(builder.Configuration["FirebaseCredentials:FilePath"]),
+});
+
 builder.Services.AddTransient<DisturbanceService>();
 builder.Services.AddTransient<LineService>();
+builder.Services.AddTransient<SubscriptionService>();
 
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<WlUpdateService>();

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using wls_backend.Data;
@@ -11,9 +12,11 @@ using wls_backend.Data;
 namespace wls_backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250820201331_AddSubscribersTable")]
+    partial class AddSubscribersTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -35,26 +38,6 @@ namespace wls_backend.Migrations
                     b.HasIndex("LinesId");
 
                     b.ToTable("DisturbanceLine");
-                });
-
-            modelBuilder.Entity("wls_backend.Models.Domain.Device", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.ToTable("Devices");
                 });
 
             modelBuilder.Entity("wls_backend.Models.Domain.Disturbance", b =>
@@ -105,27 +88,27 @@ namespace wls_backend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("SubscriberToken")
+                        .HasColumnType("text");
+
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SubscriberToken");
+
                     b.ToTable("Line");
                 });
 
-            modelBuilder.Entity("wls_backend.Models.Domain.Subscription", b =>
+            modelBuilder.Entity("wls_backend.Models.Domain.Subscriber", b =>
                 {
-                    b.Property<int>("DeviceId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("LineId")
+                    b.Property<string>("Token")
                         .HasColumnType("text");
 
-                    b.HasKey("DeviceId", "LineId");
+                    b.HasKey("Token");
 
-                    b.HasIndex("LineId");
-
-                    b.ToTable("Subscriptions");
+                    b.ToTable("Subscribers");
                 });
 
             modelBuilder.Entity("DisturbanceLine", b =>
@@ -152,28 +135,11 @@ namespace wls_backend.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("wls_backend.Models.Domain.Subscription", b =>
+            modelBuilder.Entity("wls_backend.Models.Domain.Line", b =>
                 {
-                    b.HasOne("wls_backend.Models.Domain.Device", "Device")
-                        .WithMany("Subscriptions")
-                        .HasForeignKey("DeviceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("wls_backend.Models.Domain.Line", "Line")
-                        .WithMany("Subscriptions")
-                        .HasForeignKey("LineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Device");
-
-                    b.Navigation("Line");
-                });
-
-            modelBuilder.Entity("wls_backend.Models.Domain.Device", b =>
-                {
-                    b.Navigation("Subscriptions");
+                    b.HasOne("wls_backend.Models.Domain.Subscriber", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("SubscriberToken");
                 });
 
             modelBuilder.Entity("wls_backend.Models.Domain.Disturbance", b =>
@@ -181,9 +147,9 @@ namespace wls_backend.Migrations
                     b.Navigation("Descriptions");
                 });
 
-            modelBuilder.Entity("wls_backend.Models.Domain.Line", b =>
+            modelBuilder.Entity("wls_backend.Models.Domain.Subscriber", b =>
                 {
-                    b.Navigation("Subscriptions");
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

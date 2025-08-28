@@ -9,5 +9,6 @@ namespace wls_backend.Models.Domain
         required public string DisplayName { get; set; }
 
         public ICollection<Disturbance> Disturbances { get; set; } = [];
+        public ICollection<Subscription> Subscriptions { get; set; } = [];
     }
 }

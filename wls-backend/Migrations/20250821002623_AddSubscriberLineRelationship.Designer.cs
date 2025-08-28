@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using wls_backend.Data;
@@ -11,9 +12,11 @@ using wls_backend.Data;
 namespace wls_backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250821002623_AddSubscriberLineRelationship")]
+    partial class AddSubscriberLineRelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -35,26 +38,6 @@ namespace wls_backend.Migrations
                     b.HasIndex("LinesId");
 
                     b.ToTable("DisturbanceLine");
-                });
-
-            modelBuilder.Entity("wls_backend.Models.Domain.Device", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.ToTable("Devices");
                 });
 
             modelBuilder.Entity("wls_backend.Models.Domain.Disturbance", b =>
@@ -113,15 +96,35 @@ namespace wls_backend.Migrations
                     b.ToTable("Line");
                 });
 
+            modelBuilder.Entity("wls_backend.Models.Domain.Subscriber", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("Subscribers");
+                });
+
             modelBuilder.Entity("wls_backend.Models.Domain.Subscription", b =>
                 {
-                    b.Property<int>("DeviceId")
+                    b.Property<int>("SubscriberId")
                         .HasColumnType("integer");
 
                     b.Property<string>("LineId")
                         .HasColumnType("text");
 
-                    b.HasKey("DeviceId", "LineId");
+                    b.HasKey("SubscriberId", "LineId");
 
                     b.HasIndex("LineId");
 
@@ -154,26 +157,21 @@ namespace wls_backend.Migrations
 
             modelBuilder.Entity("wls_backend.Models.Domain.Subscription", b =>
                 {
-                    b.HasOne("wls_backend.Models.Domain.Device", "Device")
-                        .WithMany("Subscriptions")
-                        .HasForeignKey("DeviceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("wls_backend.Models.Domain.Line", "Line")
                         .WithMany("Subscriptions")
                         .HasForeignKey("LineId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Device");
+                    b.HasOne("wls_backend.Models.Domain.Subscriber", "Subscriber")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("SubscriberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Line");
-                });
 
-            modelBuilder.Entity("wls_backend.Models.Domain.Device", b =>
-                {
-                    b.Navigation("Subscriptions");
+                    b.Navigation("Subscriber");
                 });
 
             modelBuilder.Entity("wls_backend.Models.Domain.Disturbance", b =>
@@ -182,6 +180,11 @@ namespace wls_backend.Migrations
                 });
 
             modelBuilder.Entity("wls_backend.Models.Domain.Line", b =>
+                {
+                    b.Navigation("Subscriptions");
+                });
+
+            modelBuilder.Entity("wls_backend.Models.Domain.Subscriber", b =>
                 {
                     b.Navigation("Subscriptions");
                 });

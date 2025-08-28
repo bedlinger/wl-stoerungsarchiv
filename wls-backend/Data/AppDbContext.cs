@@ -26,11 +26,28 @@ namespace wls_backend.Data
             builder.Entity<DisturbanceDescription>()
                 .Property(d => d.CreatedAt)
                 .HasColumnType("timestamp without time zone");
+
+            builder.Entity<Subscription>()
+                .HasKey(s => new { s.DeviceId, s.LineId });
+            builder.Entity<Subscription>()
+                .HasOne(s => s.Device)
+                .WithMany(sub => sub.Subscriptions)
+                .HasForeignKey(s => s.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.Entity<Subscription>()
+                .HasOne(s => s.Line)
+                .WithMany(l => l.Subscriptions)
+                .HasForeignKey(s => s.LineId);
+            builder.Entity<Device>()
+                .HasIndex(s => s.Token)
+                .IsUnique();
         }
 
         public DbSet<Disturbance> Disturbance { get; set; }
         public DbSet<DisturbanceDescription> DisturbanceDescription { get; set; }
         public DbSet<Line> Line { get; set; }
+        public DbSet<Device> Devices { get; set; }
+        public DbSet<Subscription> Subscriptions { get; set; }
 
         public IQueryable<Disturbance> DisturbanceWithAll => Disturbance
             .Include(d => d.Descriptions.OrderBy(desc => desc.CreatedAt))
