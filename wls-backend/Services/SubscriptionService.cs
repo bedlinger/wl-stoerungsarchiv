@@ -119,7 +119,18 @@ namespace wls_backend.Services
 
             await _context.SaveChangesAsync();
 
-            return (wasCreated, SubscriptionResponse.FromDomain(device));
+            var updatedDevice = await _context.Devices
+                .Include(s => s.Subscriptions)
+                .ThenInclude(sub => sub.Line)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Token == subscriptionRequest.Token);
+
+            if (updatedDevice == null)
+            {
+                throw new InvalidOperationException("Failed to retrieve device after update.");
+            }
+
+            return (wasCreated, SubscriptionResponse.FromDomain(updatedDevice));
         }
 
         public async Task DeleteSubscription(String token)
