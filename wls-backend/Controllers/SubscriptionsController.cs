@@ -46,7 +46,7 @@ namespace wls_backend.Controllers
         }
 
         [HttpPut("{token}")]
-        public async Task<IActionResult> CreateOrUpdateSubscriptions([FromRoute] string token, [FromBody] UpdateSubscriptionsRequest request)
+        public async Task<ActionResult<SubscriptionResponse>> CreateOrUpdateSubscriptions([FromRoute] string token, [FromBody] UpdateSubscriptionsRequest request)
         {
             _logger.LogInformation("Attempting to create or update subscriptions for token.");
             try
